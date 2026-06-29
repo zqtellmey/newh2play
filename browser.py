@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -21,7 +22,6 @@ class BrowserManager:
         self.context: Optional[BrowserContext] = None
 
     def __enter__(self) -> BrowserContext:
-        # 必须恢复根据环境变量自动判断，不要写死 True
         debug = os.getenv("DEBUG", "false").lower() == "true"
         nopecha_enabled = os.getenv("NOPECHA_ENABLED", "true").lower() == "true"
 
@@ -42,7 +42,6 @@ class BrowserManager:
         launch_args = [
             "--no-sandbox",
             "--ozone-platform=x11",
-            "--disable-blink-features=AutomationControlled",
         ]
         if nopecha_enabled:
             launch_args += [
@@ -53,7 +52,6 @@ class BrowserManager:
         proxy_url = os.getenv("PROXY_SOCKS5")
         proxy_config = {"server": proxy_url} if proxy_url else None
 
-        # 启动持久化上下文
         self.context = self.playwright.chromium.launch_persistent_context(
             str(CHROME_PROFILE_DIR),
             channel="chromium",
