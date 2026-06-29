@@ -24,27 +24,34 @@ def run_automation():
                 
                 print("访问目标页面...")
                 page.goto("https://host2play.gratis/server/renew?i=0b2f82c5-df07-4457-a2d9-9d948ce3d12d")
-                time.sleep(5) # 等待初始加载
+                time.sleep(5)
 
-                # --- 核心移植：暴力清理阻碍元素 ---
-                print("清理阻碍元素...")
+                # 1. 暴力清理阻碍元素
                 page.evaluate("""() => {
                     const selectors = ['ins.adsbygoogle', 'iframe[src*="ads"]', '.modal-backdrop', '[id*="consent"]', '[class*="consent"]', '.loading-spinner'];
                     selectors.forEach(sel => {
                         document.querySelectorAll(sel).forEach(el => el.remove());
                     });
                 }""")
-                # --------------------------------
-
-                print("等待 Renew 卡片...")
-                page.wait_for_selector("#renew", state="visible", timeout=20000)
                 
                 print("点击 Renew...")
+                page.wait_for_selector("#renew", state="visible", timeout=20000)
                 page.get_by_role("button", name="Renew server").click()
                 
-                time.sleep(5)
+                # 2. 检查验证码并激活
+                time.sleep(3)
+                if page.frame_locator("iframe[src*='recaptcha/api2/bframe']").count() > 0:
+                    print("检测到验证码，准备激活...")
+                    try:
+                        # 触发点击，让插件感知
+                        page.frame_locator("iframe[src*='recaptcha/api2/anchor']").locator("#recaptcha-anchor").click()
+                    except: pass
+                    print("等待 NopeCHA 处理 (40秒)...")
+                    time.sleep(40) 
+                
+                # 3. 最终确认
                 page.screenshot(path="final.png")
-                send_telegram("操作成功！", "final.png")
+                send_telegram("流程结束，查看截图确认结果。", "final.png")
                 
     except Exception as e:
         print(f"出错: {e}")
