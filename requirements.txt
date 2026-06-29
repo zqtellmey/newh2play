@@ -3,3 +3,4 @@ patchright
 xvfbwrapper
 python-dotenv
 requests
+httpx
