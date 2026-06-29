@@ -1,7 +1,7 @@
 import os
 import requests
 from playwright.sync_api import sync_playwright
-from browser_manager import BrowserManager
+from browser import BrowserManager
 
 # Telegram 通知函数
 def send_telegram_msg(message, image_path=None):
