@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
 from patchright.sync_api import BrowserContext, Playwright
-from playwright_stealth import stealth_sync  # 引入反检测插件
 
 load_dotenv()
 
@@ -18,7 +17,6 @@ class BrowserManager:
         self.context: Optional[BrowserContext] = None
 
     def __enter__(self) -> BrowserContext:
-        # 暂时关闭虚拟环境显示，看是否是环境检测问题
         from xvfbwrapper import Xvfb
         self._display = Xvfb(width=1920, height=1080, colordepth=24)
         self._display.start()
@@ -26,18 +24,23 @@ class BrowserManager:
 
         CHROME_PROFILE_DIR.mkdir(exist_ok=True)
 
+        # 对齐 mcscrap 的简洁启动逻辑
         self.context = self.playwright.chromium.launch_persistent_context(
             str(CHROME_PROFILE_DIR),
             channel="chromium",
             headless=False,
             viewport={"width": 1920, "height": 1080},
-            args=["--no-sandbox"], # 移除其他复杂参数
-            env={**os.environ},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+            args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
             proxy={"server": os.getenv("PROXY_SOCKS5")} if os.getenv("PROXY_SOCKS5") else None,
         )
         
-        # 为每一个新建的页面注入 Stealth 伪装，消除自动化特征
-        self.context.on("page", lambda page: stealth_sync(page))
+        # 使用 mcscrap 风格的初始化脚本，彻底抹除自动化标识
+        self.context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            window.navigator.chrome = {runtime: {}};
+            Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
+        """)
         
         return self.context
 
