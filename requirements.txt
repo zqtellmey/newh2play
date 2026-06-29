@@ -1,0 +1,5 @@
+playwright
+patchright
+xvfbwrapper
+python-dotenv
+requests
