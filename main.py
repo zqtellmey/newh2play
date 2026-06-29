@@ -1,57 +1,61 @@
-import os
 import sys
-from pathlib import Path
-from typing import Optional
-from dotenv import load_dotenv
-from patchright.sync_api import BrowserContext, Playwright
+import os
+import time
+import requests
+from playwright.sync_api import sync_playwright
+from browser import BrowserManager 
 
+# 添加路径
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-load_dotenv()
+def send_telegram(message, photo_path=None):
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if not token or not chat_id: return
+    requests.post(f"https://api.telegram.org/bot{token}/sendMessage", data={'chat_id': chat_id, 'text': message})
+    if photo_path and os.path.exists(photo_path):
+        with open(photo_path, 'rb') as f:
+            requests.post(f"https://api.telegram.org/bot{token}/sendPhoto", data={'chat_id': chat_id}, files={'photo': f})
 
-BASE_DIR = Path(__file__).parent.absolute()
-NOPECHA_EXTENSION_PATH = BASE_DIR / "extensions" / "nopecha"
-CHROME_PROFILE_DIR = BASE_DIR / ".chrome_profile"
+def run_automation():
+    page = None
+    try:
+        with sync_playwright() as p:
+            with BrowserManager(p) as context:
+                page = context.new_page()
+                # 恢复之前的基础视口
+                page.set_viewport_size({"width": 1920, "height": 1080})
+                
+                print("访问页面...")
+                page.goto("https://host2play.gratis/server/renew?i=0b2f82c5-df07-4457-a2d9-9d948ce3d12d")
+                
+                # 等待网络空闲
+                page.wait_for_load_state("networkidle")
+                
+                # --- 仅在这里增加了一次截图，方便排查 ---
+                page.screenshot(path="debug.png", full_page=True)
+                send_telegram("页面已加载，当前状态：", "debug.png")
+                # ------------------------------------
 
-class BrowserManager:
-    def __init__(self, playwright: Playwright):
-        self.playwright = playwright
-        self._display = None
-        self.context: Optional[BrowserContext] = None
+                print("点击 Renew server...")
+                btn = page.get_by_role("button", name="Renew server")
+                btn.wait_for(state="visible", timeout=30000)
+                btn.click()
+                
+                print("等待弹窗...")
+                page.wait_for_selector(".swal2-confirm", timeout=30000)
+                page.get_by_role("button", name="Renew").click()
+                
+                send_telegram("Renew 操作成功！")
+                
+    except Exception as e:
+        error_msg = f"错误: {str(e)}"
+        print(error_msg)
+        if page:
+            page.screenshot(path="error.png", full_page=True)
+            send_telegram(error_msg, "error.png")
+        else:
+            send_telegram(error_msg)
 
-    def __enter__(self) -> BrowserContext:
-        # 强制启用 Xvfb，这是在 GitHub Actions 运行 headed 模式的唯一方式
-        from xvfbwrapper import Xvfb
-        self._display = Xvfb(width=1920, height=1080)
-        self._display.start()
-        
-        # 显式设置环境变量
-        os.environ["DISPLAY"] = f":{self._display.new_display}"
-        print(f"Xvfb 已启动，显示器 ID: {os.environ['DISPLAY']}")
-
-        CHROME_PROFILE_DIR.mkdir(exist_ok=True)
-
-        # 启动参数保持精简但包含插件
-        launch_args = [
-            "--no-sandbox",
-            "--ozone-platform=x11",
-            f"--load-extension={NOPECHA_EXTENSION_PATH}",
-            f"--disable-extensions-except={NOPECHA_EXTENSION_PATH}",
-        ]
-
-        self.context = self.playwright.chromium.launch_persistent_context(
-            str(CHROME_PROFILE_DIR),
-            channel="chromium",
-            headless=False,  # 必须为 False 才能加载插件
-            viewport={"width": 1920, "height": 1080},
-            args=launch_args,
-        )
-        return self.context
-
-    def __exit__(self, *_):
-        if self.context:
-            try: self.context.close()
-            except: pass
-        if self._display:
-            try: self._display.stop()
-            except: pass
+if __name__ == "__main__":
+    run_automation()
