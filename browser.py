@@ -7,6 +7,7 @@ from typing import Optional
 from dotenv import load_dotenv
 from patchright.sync_api import BrowserContext, Playwright
 
+# 绝对导入修复
 from nopecha import verify_api_key
 
 load_dotenv()
@@ -33,16 +34,18 @@ class BrowserManager:
 
         if not debug:
             from xvfbwrapper import Xvfb
+            # 使用最常规的分辨率设置
             self._display = Xvfb(width=1920, height=1080, colordepth=24)
             self._display.start()
             os.environ["DISPLAY"] = f":{self._display.new_display}"
 
         CHROME_PROFILE_DIR.mkdir(exist_ok=True)
 
+        # 最基础的启动参数，移除了所有可能导致兼容性问题的参数
         launch_args = [
             "--no-sandbox",
-            "--ozone-platform=x11",
         ]
+        
         if nopecha_enabled:
             launch_args += [
                 f"--disable-extensions-except={NOPECHA_EXTENSION_PATH}",
