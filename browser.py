@@ -5,6 +5,7 @@ from typing import Optional
 from dotenv import load_dotenv
 from patchright.sync_api import BrowserContext, Playwright
 
+# 确保能找到同目录文件
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from nopecha import verify_api_key
 
@@ -23,20 +24,21 @@ class BrowserManager:
     def __enter__(self) -> BrowserContext:
         debug = os.getenv("DEBUG", "false").lower() == "true"
         
-        # 简化启动参数，去除可能的屏蔽干扰
-        launch_args = [
-            "--no-sandbox",
-            # 如果之前是因为屏蔽了某些加载项导致转圈，这里可以暂时先不加 --disable-extensions-except
-        ]
-
-        # 保持显示逻辑
+        # 必须启动虚拟显示服务，否则 Linux 下无法运行 headed 浏览器
         if not debug:
             from xvfbwrapper import Xvfb
-            self._display = Xvfb(width=1920, height=1080) # 对应高清截图
+            self._display = Xvfb(width=1920, height=1080)
             self._display.start()
             os.environ["DISPLAY"] = f":{self._display.new_display}"
 
         CHROME_PROFILE_DIR.mkdir(exist_ok=True)
+
+        launch_args = [
+            "--no-sandbox",
+            "--ozone-platform=x11",
+            f"--load-extension={NOPECHA_EXTENSION_PATH}",
+            f"--disable-extensions-except={NOPECHA_EXTENSION_PATH}",
+        ]
 
         self.context = self.playwright.chromium.launch_persistent_context(
             str(CHROME_PROFILE_DIR),
