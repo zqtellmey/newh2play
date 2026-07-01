@@ -50,11 +50,7 @@ jobs:
               
               config = {
                   "log": {"level": "info"},
-                  # 1. 强制 DNS 走代理，防止 DNS 泄露导致的 Cloudflare 封锁
-                  "dns": {
-                      "servers": [{"tag": "dns-proxy", "address": "https://1.1.1.1/dns-query", "detour": "proxy"}],
-                      "rules": [{"outbound": "any", "server": "dns-proxy"}]
-                  },
+                  # 直接移除 dns 模块，彻底解决版本废弃警告
                   "inbounds": [{"type": "socks", "tag": "socks-in", "listen": "127.0.0.1", "listen_port": 10808}],
                   "outbounds": []
               }
