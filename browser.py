@@ -77,7 +77,7 @@ class BrowserManager:
 
     def _check_nopecha_status(self) -> None:
         try:
-            response = requests.get("https://api.nopecha.com/v1/status", proxies=proxies, timeout=5)
+            response = requests.get("https://api.nopecha.com/v1/status", timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 print(f"--- NopeCHA 状态正常: 剩余额度={data.get('credit')} ---")
