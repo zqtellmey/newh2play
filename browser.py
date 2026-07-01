@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).parent.absolute()
 NOPECHA_EXTENSION_PATH = BASE_DIR / "extensions" / "nopecha"
 CHROME_PROFILE_DIR = BASE_DIR / ".chrome_profile"
 
-# 使用你当前的 Magic URL
+# 使用你当前确认有效的 Magic URL
 MAGIC_URL = "https://nopecha.com/setup#_version=0|keys=|enabled=true|recaptcha_auto_open=true|recaptcha_auto_solve=true|recaptcha_solve_delay_time=5000|hcaptcha_auto_open=true|hcaptcha_auto_solve=true|hcaptcha_solve_delay_time=5000|mouse_speed=slow"
 
 class BrowserManager:
@@ -22,10 +22,6 @@ class BrowserManager:
     def __enter__(self) -> BrowserContext:
         nopecha_enabled = os.getenv("NOPECHA_ENABLED", "true").lower() == "true"
         CHROME_PROFILE_DIR.mkdir(exist_ok=True)
-        
-        # 强制使用硬编码的代理地址，确保所有流量都走 10808
-        proxy_url = "http://127.0.0.1:10808"
-        proxy_config = {"server": proxy_url}
 
         launch_args = [
             "--no-sandbox",
@@ -36,6 +32,10 @@ class BrowserManager:
                 f"--disable-extensions-except={NOPECHA_EXTENSION_PATH}",
                 f"--load-extension={NOPECHA_EXTENSION_PATH}",
             ]
+
+        # 强制使用 10808 端口代理
+        proxy_url = "http://127.0.0.1:10808"
+        proxy_config = {"server": proxy_url}
 
         # 严格复刻：使用你旧版 context 创建逻辑 (包括 user_agent 和 env)
         self.context = self.playwright.chromium.launch_persistent_context(
@@ -67,7 +67,7 @@ class BrowserManager:
             try: self.context.close()
             except: pass
 
-    # 严格复刻：注入流程 (new_page -> goto -> wait -> close)
+    # 严格复刻：旧版注入流程 (new_page -> goto -> wait -> close)
     def _inject_magic_config(self) -> None:
         page = self.context.new_page()
         try:
@@ -77,7 +77,7 @@ class BrowserManager:
             page.close()
 
     def _check_nopecha_status(self, proxy_url: str):
-        # 确保状态查询也走 10808 端口
+        # 确保查询状态也走代理，不报错且能读到额度
         proxies = {"http": proxy_url, "https": proxy_url}
         try:
             response = requests.get("https://api.nopecha.com/v1/status", proxies=proxies, timeout=5)
