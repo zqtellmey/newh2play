@@ -47,6 +47,7 @@ class BrowserManager:
 
         self.context = self.playwright.chromium.launch_persistent_context(
             str(CHROME_PROFILE_DIR),
+            proxy={"server": "socks5://127.0.0.1:10808"},
             channel="chromium",
             headless=False,
             viewport={"width": 1280, "height": 720},
@@ -87,8 +88,13 @@ class BrowserManager:
         http.client.HTTPConnection.debuglevel = 1  # 开启底层调试
         logging.basicConfig()
         logging.getLogger().setLevel(logging.DEBUG)
+        proxy_url = os.getenv("PROXY_SOCKS5", "socks5h://127.0.0.1:10808")
+        proxies = {
+            "http": proxy_url,
+            "https": proxy_url
+        }
         try:
-            response = requests.get("https://api.nopecha.com/v1/status", timeout=5)
+            response = requests.get("https://api.nopecha.com/v1/status",proxies=proxies,timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 print(f"--- NopeCHA 状态正常: 剩余额度={data.get('credit')} ---")
