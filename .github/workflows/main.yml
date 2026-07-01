@@ -36,7 +36,7 @@ jobs:
           curl -I -x http://127.0.0.1:10808 https://www.google.com
           
       - name: Run script
-              rm -rf .chrome_profile
+            #  rm -rf .chrome_profile
         env:
           NOPECHA_API_KEY: ${{ secrets.NOPECHA_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
