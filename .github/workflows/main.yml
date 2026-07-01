@@ -50,64 +50,39 @@ jobs:
               
               config = {
                   "log": {"level": "info"},
+                  # 1. 强制 DNS 走代理，防止 DNS 泄露导致的 Cloudflare 封锁
+                  "dns": {
+                      "servers": [{"tag": "dns-proxy", "address": "https://1.1.1.1/dns-query", "detour": "proxy"}],
+                      "rules": [{"outbound": "any", "server": "dns-proxy"}]
+                  },
                   "inbounds": [{"type": "socks", "tag": "socks-in", "listen": "127.0.0.1", "listen_port": 10808}],
                   "outbounds": []
               }
               
-              # 提取账号基础信息
               raw_auth = unquote(p.netloc.split('@')[0] if '@' in p.netloc else "")
               server = p.hostname
               port = int(p.port or 443)
               sni = params.get("sni", server)
 
-              outbound = {"tag": "proxy", "server": server, "server_port": port}
+              outbound = {
+                  "tag": "proxy", "server": server, "server_port": port,
+                  # 2. 核心改进：添加指纹模拟，让 Cloudflare 认为你是一个真实的 Chrome 浏览器
+                  "tls": {"enabled": True, "server_name": sni, "insecure": True, "utls": {"enabled": True, "fingerprint": "chrome"}}
+              }
 
-              # --- 分流逻辑 1: VLESS (针对普通 TLS + WS 优化) ---
               if scheme == "vless":
-                  outbound.update({
-                      "type": "vless",
-                      "uuid": raw_auth or p.username,
-                      "packet_encoding": "xudp",
-                      "tls": {"enabled": True, "server_name": sni, "insecure": True}
-                  })
-                  # 特别处理：如果是 WebSocket 传输
+                  outbound.update({"type": "vless", "uuid": raw_auth or p.username, "packet_encoding": "xudp"})
                   if params.get("type") == "ws":
-                      outbound["transport"] = {
-                          "type": "ws",
-                          "path": unquote(params.get("path", "/")),
-                          "headers": {"Host": sni}
-                      }
-                  # 特别处理：如果是 Reality 模式
+                      outbound["transport"] = {"type": "ws", "path": unquote(params.get("path", "/")), "headers": {"Host": sni}}
                   if params.get("security") == "reality":
-                      outbound["tls"]["reality"] = {
-                          "enabled": True,
-                          "public_key": params.get("pbk", ""),
-                          "short_id": params.get("sid", "")
-                      }
+                      outbound["tls"]["reality"] = {"enabled": True, "public_key": params.get("pbk", ""), "short_id": params.get("sid", "")}
 
-              # --- 分流逻辑 2: TUIC (保持原本可用的配置) ---
               elif scheme == "tuic":
                   u, pwd = raw_auth.split(':', 1) if ':' in raw_auth else (raw_auth, "")
-                  outbound.update({
-                      "type": "tuic", "uuid": u, "password": pwd,
-                      "congestion_control": params.get("congestion_control", "cubic"),
-                      "tls": {"enabled": True, "server_name": sni, "alpn": ["h3"], "insecure": True}
-                  })
+                  outbound.update({"type": "tuic", "uuid": u, "password": pwd, "congestion_control": params.get("congestion_control", "cubic"), "tls": {"enabled": True, "server_name": sni, "alpn": ["h3"], "insecure": True}})
 
-              # --- 分流逻辑 3: Hysteria2 / VMess 兜底 ---
               elif scheme in ["hysteria2", "hy2"]:
-                  outbound.update({
-                      "type": "hysteria2", "password": raw_auth,
-                      "tls": {"enabled": True, "server_name": sni, "insecure": True}
-                  })
-              elif scheme == "vmess":
-                  try:
-                      content = url[8:].split("#")[0]
-                      vm = json.loads(base64.b64decode(content + "="*(4-len(content)%4)).decode())
-                      outbound.update({"type": "vmess", "server": vm['add'], "server_port": int(vm['port']), "uuid": vm['id'], "security": "auto"})
-                      if vm.get('tls') == "tls":
-                          outbound["tls"] = {"enabled": True, "server_name": vm.get('sni', vm['add']), "insecure": True}
-                  except: pass
+                  outbound.update({"type": "hysteria2", "password": raw_auth})
 
               config["outbounds"].append(outbound)
               config["outbounds"].append({"type": "direct", "tag": "direct"})
