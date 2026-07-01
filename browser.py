@@ -34,7 +34,7 @@ class BrowserManager:
                 f"--load-extension={NOPECHA_EXTENSION_PATH}",
             ]
 
-        # 代理固定指向 10808 端口
+        # 代理协议已修改为 socks5:// 以适配 Sing-box
         proxy_url = "socks5://127.0.0.1:10808"
         proxy_config = {"server": proxy_url}
 
