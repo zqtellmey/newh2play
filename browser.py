@@ -76,6 +76,7 @@ class BrowserManager:
             page.close()
 
     def _check_nopecha_status(self) -> None:
+        print("DEBUG: 开始查询 NopeCHA 状态...")
         try:
             response = requests.get("https://api.nopecha.com/v1/status", timeout=5)
             if response.status_code == 200:
