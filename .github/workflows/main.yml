@@ -29,11 +29,11 @@ jobs:
           chmod +x gost-linux-amd64-2.11.5
           
           echo "🔗 启动 Gost 隧道: $SOCKS5_URL"
-          ./gost-linux-amd64-2.11.5 -L=http://:1080 -F="${{ secrets.SOCKS5_URL }}" > gost.log 2>&1 &
+          ./gost-linux-amd64-2.11.5 -L=http://:10808 -F="${{ secrets.SOCKS5_URL }}" > gost.log 2>&1 &
           
           sleep 5
           echo "--- 🌐 连通性测试 ---"
-          curl -I -x http://127.0.0.1:1080 https://www.google.com
+          curl -I -x http://127.0.0.1:10808 https://www.google.com
           
       - name: Run script
         env:
