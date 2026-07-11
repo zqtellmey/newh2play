@@ -7,9 +7,15 @@ from patchright.sync_api import BrowserContext, Playwright
 # os.environ['https_proxy'] = 'socks5://127.0.0.1:1080'
 # os.environ['http_proxy'] = 'socks5://127.0.0.1:1080'
 # 在程序启动时设置代理，仅在未设置环境变量时生效
-http_proxy: 'socks5://127.0.0.1:1080'
-https_proxy: 'socks5://127.0.0.1:1080'
-
+proxy_url = os.environ.get("PROXY", "127.0.0.1:1080")
+os.environ["http_proxy"] = f"http://{proxy_url}"
+os.environ["https_proxy"] = f"http://{proxy_url}"
+os.environ["all_proxy"] = f"socks5://{proxy_url}" # 兼容性补充
+def get_proxy_settings():
+    """供不同库调用的统一配置字典"""
+    return {
+        "server": f"http://{proxy_url}"
+    }
 
 load_dotenv()
 
